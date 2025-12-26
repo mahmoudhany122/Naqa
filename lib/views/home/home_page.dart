@@ -3,31 +3,33 @@ import 'package:glassmorphism/glassmorphism.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:charts_flutter/flutter.dart' as charts;
-import '../../models/progress_model.dart';
-import '../../viewmodels/home_viewmodel.dart';
+import '../../../models/progress_model.dart';
+import '../../../viewmodels/home_viewmodel.dart';
 
 class HomePage extends StatelessWidget {
   final String userId;
 
-  HomePage({super.key, required this.userId,});
-
-  final TextEditingController journeyController = TextEditingController();
-
-  final List<ProgressModel> weeklyProgress = [
-    ProgressModel('Mon', 80),
-    ProgressModel('Tue', 50),
-    ProgressModel('Wed', 70),
-    ProgressModel('Thu', 60),
-    ProgressModel('Fri', 90),
-    ProgressModel('Sat', 40),
-    ProgressModel('Sun', 100),
-  ];
+  const HomePage({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => HomeViewModel(),
+      create: (_) => HomeViewModel(userId: userId),
       child: Scaffold(
+        appBar: AppBar(
+          title: const Text('رحلة التعافي'),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () {
+                // TODO: Notifications
+              },
+            ),
+          ],
+        ),
         body: Stack(
           children: [
             Container(
@@ -48,13 +50,11 @@ class HomePage extends StatelessWidget {
                       children: [
                         _buildTimerWidget(viewModel),
                         const SizedBox(height: 20),
-                        _buildProgressChart(),
+                        _buildProgressChart(viewModel),
                         const SizedBox(height: 20),
                         _buildMotivationWidget(viewModel),
                         const SizedBox(height: 20),
-                        _buildJourneyLog(viewModel),
-                        const SizedBox(height: 20),
-                        _buildAppLockWidget(viewModel),
+                        _buildQuickActions(context),
                         const SizedBox(height: 30),
                       ],
                     ),
@@ -71,7 +71,7 @@ class HomePage extends StatelessWidget {
   Widget _buildTimerWidget(HomeViewModel viewModel) {
     return GlassmorphicContainer(
       width: double.infinity,
-      height: 120,
+      height: 200,
       borderRadius: 20,
       blur: 20,
       border: 2,
@@ -83,32 +83,43 @@ class HomePage extends StatelessWidget {
       borderGradient: LinearGradient(
         colors: [Colors.white.withOpacity(0.5), Colors.white.withOpacity(0.5)],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Column(
+          const Text(
+            'الوقت المنقضي',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.access_time, size: 50, color: Colors.white),
+              const Icon(Icons.access_time, size: 40, color: Colors.white),
+              const SizedBox(width: 16),
               Text(
                 viewModel.formattedTime,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 16),
           CircularPercentIndicator(
-            radius: 50,
-            lineWidth: 10,
+            radius: 40,
+            lineWidth: 8,
             percent: (viewModel.duration.inSeconds % 60) / 60,
             center: Text(
-              "${viewModel.duration.inSeconds % 60} sec",
-              style: const TextStyle(color: Colors.white),
+              "${viewModel.duration.inSeconds % 60}s",
+              style: const TextStyle(color: Colors.white, fontSize: 14),
             ),
-            progressColor: Colors.white,
+            progressColor: Colors.greenAccent,
             backgroundColor: Colors.white38,
             circularStrokeCap: CircularStrokeCap.round,
           ),
@@ -117,10 +128,10 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressChart() {
+  Widget _buildProgressChart(HomeViewModel viewModel) {
     return GlassmorphicContainer(
       width: double.infinity,
-      height: 180,
+      height: 220,
       borderRadius: 20,
       blur: 20,
       border: 2,
@@ -133,29 +144,53 @@ class HomePage extends StatelessWidget {
         colors: [Colors.white.withOpacity(0.5), Colors.white.withOpacity(0.5)],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: charts.BarChart(
-          [
-            charts.Series<ProgressModel, String>(
-              id: 'WeeklyProgress',
-              colorFn: (_, __) => charts.ColorUtil.fromDartColor(Colors.white),
-              domainFn: (ProgressModel progress, _) => progress.day,
-              measureFn: (ProgressModel progress, _) => progress.progress,
-              data: weeklyProgress,
-            )
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'التقدم الأسبوعي',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: charts.BarChart(
+                [
+                  charts.Series<ProgressModel, String>(
+                    id: 'WeeklyProgress',
+                    colorFn: (_, __) => charts.ColorUtil.fromDartColor(Colors.white),
+                    domainFn: (ProgressModel progress, _) => progress.day,
+                    measureFn: (ProgressModel progress, _) => progress.progress,
+                    data: viewModel.weeklyProgress,
+                  )
+                ],
+                animate: true,
+                primaryMeasureAxis: const charts.NumericAxisSpec(
+                  renderSpec: charts.GridlineRendererSpec(
+                    labelStyle: charts.TextStyleSpec(
+                      color: charts.MaterialPalette.white,
+                      fontSize: 10,
+                    ),
+                    lineStyle: charts.LineStyleSpec(
+                      color: charts.MaterialPalette.white,
+                    ),
+                  ),
+                ),
+                domainAxis: const charts.OrdinalAxisSpec(
+                  renderSpec: charts.SmallTickRendererSpec(
+                    labelStyle: charts.TextStyleSpec(
+                      color: charts.MaterialPalette.white,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
-          animate: true,
-          primaryMeasureAxis: const charts.NumericAxisSpec(
-            renderSpec: charts.GridlineRendererSpec(
-              labelStyle: charts.TextStyleSpec(color: charts.MaterialPalette.white),
-              lineStyle: charts.LineStyleSpec(color: charts.MaterialPalette.white),
-            ),
-          ),
-          domainAxis: const charts.OrdinalAxisSpec(
-            renderSpec: charts.SmallTickRendererSpec(
-              labelStyle: charts.TextStyleSpec(color: charts.MaterialPalette.white),
-            ),
-          ),
         ),
       ),
     );
@@ -164,7 +199,7 @@ class HomePage extends StatelessWidget {
   Widget _buildMotivationWidget(HomeViewModel viewModel) {
     return GlassmorphicContainer(
       width: double.infinity,
-      height: 80,
+      height: 100,
       borderRadius: 20,
       blur: 20,
       border: 2,
@@ -176,130 +211,104 @@ class HomePage extends StatelessWidget {
       borderGradient: LinearGradient(
         colors: [Colors.white.withOpacity(0.5), Colors.white.withOpacity(0.5)],
       ),
-      child: Center(
-        child: Text(
-          viewModel.currentMotivationMessage,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.format_quote, color: Colors.white70, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              viewModel.currentMotivationMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildJourneyLog(HomeViewModel viewModel) {
-    return StreamBuilder(
-      stream: viewModel.getJourneyLog(userId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final entries = snapshot.data!;
-        return GlassmorphicContainer(
-          width: double.infinity,
-          height: 200,
-          borderRadius: 20,
-          blur: 20,
-          border: 2,
-          linearGradient: LinearGradient(
-            colors: [Colors.white.withOpacity(0.2), Colors.white.withOpacity(0.1)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _buildQuickActions(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildActionCard(
+            context,
+            icon: Icons.book,
+            title: 'اليوميات',
+            color: Colors.teal,
+            onTap: () {
+              // Navigate to Journey
+            },
           ),
-          borderGradient: LinearGradient(
-            colors: [Colors.white.withOpacity(0.5), Colors.white.withOpacity(0.5)],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildActionCard(
+            context,
+            icon: Icons.emoji_events,
+            title: 'الإنجازات',
+            color: Colors.amber,
+            onTap: () {
+              // Navigate to Achievements
+            },
           ),
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  itemCount: entries.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(
-                        entries[index].text,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: journeyController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          hintText: 'Add new entry',
-                          hintStyle: TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        if (journeyController.text.isNotEmpty) {
-                          viewModel.addJourneyEntry(userId, journeyController.text);
-                          journeyController.clear();
-                        }
-                      },
-                      icon: const Icon(Icons.send, color: Colors.white),
-                    )
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+        ),
+      ],
     );
   }
 
-  Widget _buildAppLockWidget(HomeViewModel viewModel) {
-    return StreamBuilder<bool>(
-      stream: viewModel.getAppLockStatus(userId),
-      builder: (context, snapshot) {
-        final isLocked = snapshot.data ?? false;
-        return GlassmorphicContainer(
-          width: double.infinity,
-          height: 80,
-          borderRadius: 20,
-          blur: 20,
-          border: 2,
-          linearGradient: LinearGradient(
-            colors: [Colors.white.withOpacity(0.2), Colors.white.withOpacity(0.1)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderGradient: LinearGradient(
-            colors: [Colors.white.withOpacity(0.5), Colors.white.withOpacity(0.5)],
-          ),
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    viewModel.toggleAppLock(userId, !isLocked);
-                  },
-                  icon: Icon(isLocked ? Icons.lock : Icons.lock_open),
-                  label: Text(isLocked ? "Locked" : "Unlock"),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.timer),
-                  label: const Text("Focus Timer"),
-                ),
-              ],
+  Widget _buildActionCard(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required Color color,
+        required VoidCallback onTap,
+      }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassmorphicContainer(
+        width: double.infinity,
+        height: 120,
+        borderRadius: 16,
+        blur: 20,
+        border: 2,
+        linearGradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.2),
+            Colors.white.withOpacity(0.1),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderGradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.5),
+            Colors.white.withOpacity(0.5),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 40),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
